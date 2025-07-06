@@ -44,7 +44,6 @@ This document provides guidelines for AI agents (like Jules) working on this pro
 ## 5. Specific Considerations
 *   **`billion_cycle`:** This is the core simulation loop. Changes here should be made carefully and tested thoroughly, especially regarding its asynchronous nature, state management, and scaling/cloning logic.
 *   **State Management:** The application currently uses in-memory data structures for state (`wallets`, `profit_events`, `wallet_scaling_factors`). Be mindful of this if proposing features that require persistence.
-*   **`atomic_magic_viral_prompt.txt`:** This file is currently considered out of scope for the core backend development. Do not modify or integrate it unless specifically requested as part of a new feature.
 
 ## 6. Interaction
 *   If instructions are unclear or a task significantly deviates from the current plan or project scope, please ask for clarification using `request_user_input`.
