@@ -56,9 +56,10 @@
 ## How It Works
 
 -   Every new wallet registered via `/collect_wallet` triggers an independent, infinite, auto-scaling, compounding AI farming/trading simulation loop (`billion_cycle`). Each new wallet is **randomly assigned** one of several predefined (simulated) trading strategies (e.g., LOW_RISK, MEDIUM_RISK, HIGH_RISK).
--   The profit generation within the `billion_cycle` is directly influenced by the wallet's assigned strategy, which defines parameters like base profit amounts and potential profit ranges. This strategy system allows for more varied simulation behavior and is foundational for future enhancements like dynamic strategy switching.
+-   The profit generation within the `billion_cycle` is directly influenced by the wallet's assigned strategy, which defines parameters like base profit amounts and potential profit ranges.
+-   **Dynamic Strategy Adaptation:** If a wallet's simulation with its current strategy fails to make significant progress over several cycles (and isn't already close to its weekly target), it will automatically attempt to switch to a different, randomly chosen strategy to improve its chances. The scaling factor is maintained during such a switch. This allows the simulation to be more adaptive.
 -   Each loop aims to hit the `BILLION_TARGET_AMOUNT` weekly.
--   If the target is not met, the wallet's `scaling_factor` (simulating increased volume/risk) is doubled, and it may clone itself. The clone **inherits the parent's current strategy** and the new, higher scaling factor, then starts its own independent `billion_cycle`.
+-   If the target is not met (and strategy adaptation hasn't occurred or is also not helping sufficiently), the wallet's `scaling_factor` (simulating increased volume/risk) is doubled, and it may clone itself. The clone **inherits the parent's current strategy** and the new, higher scaling factor, then starts its own independent `billion_cycle`.
 -   Once a wallet's cycle hits the weekly target, its `scaling_factor` and weekly total reset for the next simulated week.
 -   All profits are simulated as USDC sent to wallets (logged by the application).
 -   The system uses in-memory storage, so all data is reset if the application restarts.

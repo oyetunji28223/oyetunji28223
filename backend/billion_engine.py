@@ -103,8 +103,10 @@ async def collect_wallet(req: WalletRequest):
 
 async def billion_cycle(wallet: str, initial_scaling_factor: float, strategy_name: StrategyName):
     """
-    Main asynchronous loop for a single wallet simulating profit generation,
-    sending profits, and scaling operations.
+    Main asynchronous loop for a single wallet. Simulates profit generation based on an
+    assigned strategy, sends profits (simulated), and handles scaling operations.
+    Includes logic for dynamic strategy adaptation if a wallet fails to make
+    significant progress over several cycles.
     """
     # global scaling_factor # Removed
     current_scaling_factor = initial_scaling_factor
@@ -114,9 +116,18 @@ async def billion_cycle(wallet: str, initial_scaling_factor: float, strategy_nam
         strategy_config = PREDEFINED_STRATEGIES[strategy_name]
     except KeyError:
         logging.error(f"Invalid strategy_name '{strategy_name}' for wallet {wallet}. Falling back to default strategy.")
-        strategy_name = DEFAULT_STRATEGY_NAME
+        strategy_name = DEFAULT_STRATEGY_NAME # Ensure strategy_name var is also updated
         strategy_config = PREDEFINED_STRATEGIES[strategy_name]
         wallet_strategies[wallet] = strategy_name # Correct the state if it was somehow invalid
+
+    # State variables for dynamic strategy adaptation
+    cycles_without_significant_progress: int = 0
+    last_progress_check_weekly_total: float = 0.0
+    # Constants for adaptation logic (could be made configurable later)
+    ADAPTATION_THRESHOLD_CYCLES: int = 5
+    MIN_SIGNIFICANT_PROGRESS_PERCENTAGE_OF_EXPECTED_PROFIT: float = 0.05 # 5%
+    MAX_WEEKLY_TOTAL_ADAPTATION_FACTOR: float = 0.25 # Consider adaptation if weekly total < 25% of billion_target
+
 
     try:
         billion_target_str = os.environ.get("BILLION_TARGET_AMOUNT", "1000000000")
@@ -150,6 +161,50 @@ async def billion_cycle(wallet: str, initial_scaling_factor: float, strategy_nam
             await asyncio.sleep(2) # Simulate time for sending profit
             profit["sent"] = True
             logging.info(f"Wallet {wallet}: Profit {profit_amount} USDC sent.")
+
+            # --- Dynamic Strategy Adaptation Check ---
+            # Consider adaptation only if not too close to the target
+            if weekly_total < billion_target * MAX_WEEKLY_TOTAL_ADAPTATION_FACTOR:
+                # Calculate expected profit for one cycle with current strategy and scale
+                avg_strat_factor = (strategy_config.min_profit_factor + strategy_config.max_profit_factor) / 2
+                expected_current_cycle_profit = strategy_config.base_profit_amount * avg_strat_factor * current_scaling_factor
+
+                progress_this_period = weekly_total - last_progress_check_weekly_total
+                significant_progress_threshold_value = expected_current_cycle_profit * MIN_SIGNIFICANT_PROGRESS_PERCENTAGE_OF_EXPECTED_PROFIT
+
+                if progress_this_period >= significant_progress_threshold_value:
+                    logging.debug(f"Wallet {wallet} (Strat: {strategy_name}): Significant progress made. Weekly total: {weekly_total}")
+                    cycles_without_significant_progress = 0
+                    last_progress_check_weekly_total = weekly_total
+                else:
+                    cycles_without_significant_progress += 1
+                    logging.info(f"Wallet {wallet} (Strat: {strategy_name}): No significant progress. Cycle {cycles_without_significant_progress}/{ADAPTATION_THRESHOLD_CYCLES}. Weekly total: {weekly_total}")
+
+                if cycles_without_significant_progress >= ADAPTATION_THRESHOLD_CYCLES:
+                    logging.warning(f"Wallet {wallet} (Strat: {strategy_name}): Triggering strategy adaptation after {cycles_without_significant_progress} cycles of no significant progress.")
+
+                    available_new_strategies = [s_name for s_name in PREDEFINED_STRATEGIES.keys() if s_name != strategy_name]
+                    if not available_new_strategies: # Should not happen if more than one strategy exists
+                        available_new_strategies = list(PREDEFINED_STRATEGIES.keys()) # Fallback to any strategy
+
+                    if available_new_strategies: # Ensure there's something to switch to
+                        new_strategy_name = random.choice(available_new_strategies)
+                        strategy_name = new_strategy_name # Update local var for current cycle
+                        strategy_config = PREDEFINED_STRATEGIES[new_strategy_name]
+                        wallet_strategies[wallet] = new_strategy_name # Update global state
+
+                        logging.warning(f"Wallet {wallet}: Adapted! Switched to strategy: {new_strategy_name}. Scaling factor {current_scaling_factor} maintained.")
+                        cycles_without_significant_progress = 0 # Reset for new strategy
+                        last_progress_check_weekly_total = weekly_total # Reset for new strategy
+                    else:
+                        logging.error(f"Wallet {wallet} (Strat: {strategy_name}): Could not find a new strategy to adapt to. This should not happen.")
+
+            else: # weekly_total is high enough, no need to adapt strategy
+                if cycles_without_significant_progress > 0 : # Reset if it was counting
+                    logging.debug(f"Wallet {wallet} (Strat: {strategy_name}): Progress is good / nearing target, resetting adaptation counter.")
+                    cycles_without_significant_progress = 0
+                    last_progress_check_weekly_total = weekly_total
+
 
             # 3. Aggressive scaling: clone, double, and recurse
             if weekly_total < billion_target:
