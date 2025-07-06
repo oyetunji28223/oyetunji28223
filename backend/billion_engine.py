@@ -76,21 +76,29 @@ class AdjustScalingFactorRequest(BaseModel):
 @app.post("/collect_wallet", summary="Register a new wallet and start its billion cycle simulation.")
 async def collect_wallet(req: WalletRequest):
     """
-    Registers a new wallet if not already present and initiates its autonomous profit generation cycle.
-    Each wallet operates independently.
+    Registers a new wallet if not already present. New wallets are randomly assigned a trading strategy.
+    Initiates its autonomous profit generation cycle. Each wallet operates independently.
+    Returns the registration status, wallet name, and assigned strategy.
     """
     if req.wallet not in wallets:
         wallets.append(req.wallet)
         wallet_scaling_factors[req.wallet] = 1.0 # Initialize scaling factor
-        current_strategy_name = DEFAULT_STRATEGY_NAME
-        wallet_strategies[req.wallet] = current_strategy_name # Assign default strategy
 
-        logging.info(f"Wallet {req.wallet} registered with strategy {current_strategy_name}. Starting billion cycle.")
+        # Randomly assign a strategy to new wallets
+        available_strategy_names = list(PREDEFINED_STRATEGIES.keys())
+        assigned_strategy_name = random.choice(available_strategy_names)
+        wallet_strategies[req.wallet] = assigned_strategy_name
+
+        logging.info(f"Wallet {req.wallet} registered with randomly assigned strategy: {assigned_strategy_name}. Starting billion cycle.")
         asyncio.create_task(billion_cycle(wallet=req.wallet,
                                           initial_scaling_factor=1.0,
-                                          strategy_name=current_strategy_name))
+                                          strategy_name=assigned_strategy_name))
     else:
-        logging.info(f"Wallet {req.wallet} already registered. Current strategy: {wallet_strategies.get(req.wallet, 'N/A')}")
+        # If wallet already exists, log its current strategy and don't change it.
+        existing_strategy = wallet_strategies.get(req.wallet, "N/A (should not happen if registered)")
+        logging.info(f"Wallet {req.wallet} already registered. Current strategy: {existing_strategy}")
+
+    # Return the (newly assigned or existing) strategy in the response
     return {"status": "registered", "wallet": req.wallet, "strategy": wallet_strategies.get(req.wallet)}
 
 async def billion_cycle(wallet: str, initial_scaling_factor: float, strategy_name: StrategyName):

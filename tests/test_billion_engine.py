@@ -130,12 +130,13 @@ async def test_status_with_data():
 # e.g., by injecting a "time" or "scheduler" object.
 
 @pytest.mark.asyncio
-async def test_collect_wallet_assigns_default_strategy():
-    """Test that collecting a new wallet assigns a default strategy and it's reported."""
-    wallet_name = "strategy_wallet_1"
-    # Assuming DEFAULT_STRATEGY_NAME is accessible or known for assertion.
-    # from backend.billion_engine import DEFAULT_STRATEGY_NAME # Ideally import if possible
-    expected_default_strategy = "MEDIUM_RISK" # Hardcoding for test if direct import is tricky in test setup
+async def test_collect_wallet_assigns_random_strategy():
+    """Test that collecting a new wallet assigns a random valid strategy and it's reported."""
+    wallet_name = "random_strategy_wallet_1"
+
+    # We need to know the available strategy names to check against
+    from backend.billion_engine import PREDEFINED_STRATEGIES, wallet_strategies
+    possible_strategy_names = [s.value for s in PREDEFINED_STRATEGIES.keys()]
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         # Register the wallet
@@ -144,22 +145,58 @@ async def test_collect_wallet_assigns_default_strategy():
         collect_data = response_collect.json()
         assert collect_data["status"] == "registered"
         assert collect_data["wallet"] == wallet_name
-        assert collect_data["strategy"] == expected_default_strategy
 
-        # Check global state (if directly accessible and safe in tests)
-        from backend.billion_engine import wallet_strategies
-        assert wallet_strategies[wallet_name] == expected_default_strategy
+        assigned_strategy_in_response = collect_data["strategy"]
+        assert assigned_strategy_in_response in possible_strategy_names
+
+        # Check global state
+        assert wallet_strategies[wallet_name].value == assigned_strategy_in_response
 
         # Check /status endpoint
         response_status = await ac.get("/status")
         assert response_status.status_code == 200
         status_data = response_status.json()
         assert status_data["wallets"] == [wallet_name] # Assuming this is the only wallet
-        assert status_data["wallet_strategies"][wallet_name] == expected_default_strategy
+        assert status_data["wallet_strategies"][wallet_name] == assigned_strategy_in_response
 
     # Allow some time for the billion_cycle to start
-    await asyncio.sleep(0.1)
+    await asyncio.sleep(0.1) # Small delay for async task to kick off
 
+@pytest.mark.asyncio
+async def test_clone_inherits_strategy_in_state():
+    """
+    Test that if a clone is created (simulated by manual state update),
+    it inherits the parent's strategy in the global state and status endpoint.
+    This test focuses on the state aspect, not triggering actual async cloning.
+    """
+    parent_wallet_name = "parent_wallet_1"
+    clone_wallet_name = f"{parent_wallet_name}_clone_1"
+
+    from backend.billion_engine import wallets, wallet_scaling_factors, wallet_strategies, StrategyName, PREDEFINED_STRATEGIES
+
+    # Get a known strategy name to assign to parent
+    # For consistency, let's pick one, e.g., LOW_RISK, though in reality it would be random via /collect_wallet
+    parent_strategy_name = StrategyName.LOW_RISK
+    # Manually simulate parent registration and strategy assignment for test setup simplicity
+    wallets.append(parent_wallet_name)
+    wallet_scaling_factors[parent_wallet_name] = 1.0
+    wallet_strategies[parent_wallet_name] = parent_strategy_name
+
+    # Manually simulate the state changes that occur during cloning
+    wallets.append(clone_wallet_name)
+    wallet_scaling_factors[clone_wallet_name] = wallet_scaling_factors[parent_wallet_name] * 2 # Example scaling
+    wallet_strategies[clone_wallet_name] = wallet_strategies[parent_wallet_name] # Key part: clone inherits strategy
+
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        response_status = await ac.get("/status")
+        assert response_status.status_code == 200
+        status_data = response_status.json()
+
+        assert parent_wallet_name in status_data["wallets"]
+        assert clone_wallet_name in status_data["wallets"]
+
+        assert status_data["wallet_strategies"][parent_wallet_name] == parent_strategy_name.value
+        assert status_data["wallet_strategies"][clone_wallet_name] == parent_strategy_name.value # Verify inheritance
 
 # To run these tests:
 # 1. Ensure pytest and httpx are installed: pip install pytest httpx
