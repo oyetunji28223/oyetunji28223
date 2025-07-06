@@ -63,4 +63,22 @@
 -   All profits are simulated as USDC sent to wallets (logged by the application).
 -   The system uses in-memory storage, so all data is reset if the application restarts.
 
+## Basic HTML Frontend (New)
+
+A simple HTML frontend is available in the `frontend/` directory to interact with the API.
+
+### How To Use the Frontend:
+
+1.  **Start the Backend Server:** Ensure the Python FastAPI backend is running (see "How To Run" section above). It typically runs on `http://localhost:8000`.
+2.  **Open `index.html`:**
+    *   Navigate to the `frontend/` directory in your file explorer.
+    *   Open the `index.html` file directly in your web browser (e.g., by double-clicking it, or using "File > Open" in your browser).
+3.  **Interact:**
+    *   The page will provide fields and buttons to:
+        *   Register new wallets.
+        *   View the overall system status.
+        *   Fetch and display profit events for specific wallets.
+
+**Note:** This frontend is a basic example for demonstration and interaction. It makes direct API calls to the backend. Ensure your browser allows requests to `http://localhost:8000` from a `file:///` URL if you open it directly, or consider serving the `frontend` directory via a simple local HTTP server for more robust behavior (though direct file opening should work for this simple case if the backend is on localhost).
+
 ---
