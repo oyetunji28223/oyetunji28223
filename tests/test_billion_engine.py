@@ -129,6 +129,38 @@ async def test_status_with_data():
 # A better approach for `billion_cycle` testing would be to refactor it to make it more testable,
 # e.g., by injecting a "time" or "scheduler" object.
 
+@pytest.mark.asyncio
+async def test_collect_wallet_assigns_default_strategy():
+    """Test that collecting a new wallet assigns a default strategy and it's reported."""
+    wallet_name = "strategy_wallet_1"
+    # Assuming DEFAULT_STRATEGY_NAME is accessible or known for assertion.
+    # from backend.billion_engine import DEFAULT_STRATEGY_NAME # Ideally import if possible
+    expected_default_strategy = "MEDIUM_RISK" # Hardcoding for test if direct import is tricky in test setup
+
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        # Register the wallet
+        response_collect = await ac.post("/collect_wallet", json={"wallet": wallet_name})
+        assert response_collect.status_code == 200
+        collect_data = response_collect.json()
+        assert collect_data["status"] == "registered"
+        assert collect_data["wallet"] == wallet_name
+        assert collect_data["strategy"] == expected_default_strategy
+
+        # Check global state (if directly accessible and safe in tests)
+        from backend.billion_engine import wallet_strategies
+        assert wallet_strategies[wallet_name] == expected_default_strategy
+
+        # Check /status endpoint
+        response_status = await ac.get("/status")
+        assert response_status.status_code == 200
+        status_data = response_status.json()
+        assert status_data["wallets"] == [wallet_name] # Assuming this is the only wallet
+        assert status_data["wallet_strategies"][wallet_name] == expected_default_strategy
+
+    # Allow some time for the billion_cycle to start
+    await asyncio.sleep(0.1)
+
+
 # To run these tests:
 # 1. Ensure pytest and httpx are installed: pip install pytest httpx
 # 2. Navigate to the root directory of the project in your terminal.

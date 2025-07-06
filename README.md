@@ -55,9 +55,10 @@
 
 ## How It Works
 
--   Every new wallet registered via `/collect_wallet` triggers an independent, infinite, auto-scaling, compounding AI farming/trading simulation loop (`billion_cycle`).
+-   Every new wallet registered via `/collect_wallet` triggers an independent, infinite, auto-scaling, compounding AI farming/trading simulation loop (`billion_cycle`). Each wallet is assigned a default (simulated) trading strategy.
+-   The profit generation within the `billion_cycle` is now influenced by the wallet's assigned strategy (e.g., LOW_RISK, MEDIUM_RISK, HIGH_RISK), which defines base profit amounts and variability. This strategy system is foundational for future enhancements like dynamic strategy switching.
 -   Each loop aims to hit the `BILLION_TARGET_AMOUNT` weekly.
--   If the target is not met, the wallet's `scaling_factor` (simulating increased volume/risk) is doubled, and it may clone itself. The clone inherits the new, higher scaling factor and starts its own independent `billion_cycle`.
+-   If the target is not met, the wallet's `scaling_factor` (simulating increased volume/risk) is doubled, and it may clone itself. The clone inherits the parent's current strategy and the new, higher scaling factor, then starts its own independent `billion_cycle`.
 -   Once a wallet's cycle hits the weekly target, its `scaling_factor` and weekly total reset for the next simulated week.
 -   All profits are simulated as USDC sent to wallets (logged by the application).
 -   The system uses in-memory storage, so all data is reset if the application restarts.

@@ -7,8 +7,54 @@ from pydantic import BaseModel
 from typing import Dict, List
 
 import fastapi # Added for HTTPException
+from enum import Enum # Added for StrategyName
+
 # Basic logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# --- Strategy Definitions ---
+
+class StrategyName(str, Enum):
+    """Enum for predefined strategy names."""
+    LOW_RISK = "LOW_RISK"
+    MEDIUM_RISK = "MEDIUM_RISK"
+    HIGH_RISK = "HIGH_RISK"
+
+class StrategyConfig(BaseModel):
+    """Configuration model for a trading strategy."""
+    name: StrategyName
+    min_profit_factor: float # e.g., 0.01 for 1% base profit relative to base_profit_amount
+    max_profit_factor: float # e.g., 0.05 for 5% base profit relative to base_profit_amount
+    risk_multiplier: float   # Placeholder for now, could affect profit volatility or (later) loss chance.
+    base_profit_amount: float # Base amount used in profit calculation before factors and scaling.
+
+PREDEFINED_STRATEGIES: Dict[StrategyName, StrategyConfig] = {
+    StrategyName.LOW_RISK: StrategyConfig(
+        name=StrategyName.LOW_RISK,
+        min_profit_factor=0.005, # 0.5%
+        max_profit_factor=0.02,  # 2%
+        risk_multiplier=0.8,
+        base_profit_amount=100_000
+    ),
+    StrategyName.MEDIUM_RISK: StrategyConfig(
+        name=StrategyName.MEDIUM_RISK,
+        min_profit_factor=0.01, # 1%
+        max_profit_factor=0.05, # 5%
+        risk_multiplier=1.0,
+        base_profit_amount=150_000 # Slightly higher base for medium risk
+    ),
+    StrategyName.HIGH_RISK: StrategyConfig(
+        name=StrategyName.HIGH_RISK,
+        min_profit_factor=0.02,  # 2%
+        max_profit_factor=0.10,  # 10%
+        risk_multiplier=1.5,
+        base_profit_amount=200_000 # Higher base for high risk
+    ),
+}
+
+DEFAULT_STRATEGY_NAME = StrategyName.MEDIUM_RISK
+
+# --- End Strategy Definitions ---
 
 app = FastAPI(title="Phantom AI Billion Dollar Engine", version="1.0.0")
 
@@ -16,6 +62,7 @@ app = FastAPI(title="Phantom AI Billion Dollar Engine", version="1.0.0")
 wallets: List[str] = [] # Stores registered wallet addresses
 profit_events: Dict[str, List[Dict]] = {} # Stores simulated profit events per wallet
 wallet_scaling_factors: Dict[str, float] = {} # Stores current scaling factor per wallet
+wallet_strategies: Dict[str, StrategyName] = {} # Stores current strategy for each wallet
 
 class WalletRequest(BaseModel):
     """Request model for collecting a new wallet."""
@@ -34,14 +81,19 @@ async def collect_wallet(req: WalletRequest):
     """
     if req.wallet not in wallets:
         wallets.append(req.wallet)
-        wallet_scaling_factors[req.wallet] = 1.0 # Initialize scaling factor for the new wallet
-        logging.info(f"Wallet {req.wallet} registered. Starting billion cycle.")
-        asyncio.create_task(billion_cycle(req.wallet, initial_scaling_factor=1.0))
-    else:
-        logging.info(f"Wallet {req.wallet} already registered.")
-    return {"status": "registered", "wallet": req.wallet}
+        wallet_scaling_factors[req.wallet] = 1.0 # Initialize scaling factor
+        current_strategy_name = DEFAULT_STRATEGY_NAME
+        wallet_strategies[req.wallet] = current_strategy_name # Assign default strategy
 
-async def billion_cycle(wallet: str, initial_scaling_factor: float):
+        logging.info(f"Wallet {req.wallet} registered with strategy {current_strategy_name}. Starting billion cycle.")
+        asyncio.create_task(billion_cycle(wallet=req.wallet,
+                                          initial_scaling_factor=1.0,
+                                          strategy_name=current_strategy_name))
+    else:
+        logging.info(f"Wallet {req.wallet} already registered. Current strategy: {wallet_strategies.get(req.wallet, 'N/A')}")
+    return {"status": "registered", "wallet": req.wallet, "strategy": wallet_strategies.get(req.wallet)}
+
+async def billion_cycle(wallet: str, initial_scaling_factor: float, strategy_name: StrategyName):
     """
     Main asynchronous loop for a single wallet simulating profit generation,
     sending profits, and scaling operations.
@@ -49,6 +101,15 @@ async def billion_cycle(wallet: str, initial_scaling_factor: float):
     # global scaling_factor # Removed
     current_scaling_factor = initial_scaling_factor
     clone_count = 0
+
+    try:
+        strategy_config = PREDEFINED_STRATEGIES[strategy_name]
+    except KeyError:
+        logging.error(f"Invalid strategy_name '{strategy_name}' for wallet {wallet}. Falling back to default strategy.")
+        strategy_name = DEFAULT_STRATEGY_NAME
+        strategy_config = PREDEFINED_STRATEGIES[strategy_name]
+        wallet_strategies[wallet] = strategy_name # Correct the state if it was somehow invalid
+
     try:
         billion_target_str = os.environ.get("BILLION_TARGET_AMOUNT", "1000000000")
         billion_target = int(billion_target_str)
@@ -56,12 +117,17 @@ async def billion_cycle(wallet: str, initial_scaling_factor: float):
         logging.error(f"Invalid BILLION_TARGET_AMOUNT: {os.environ.get('BILLION_TARGET_AMOUNT')}. Using default 1,000,000,000.")
         billion_target = 1_000_000_000
     weekly_total = 0
-    logging.info(f"Starting billion_cycle for wallet: {wallet} with initial_scaling_factor: {initial_scaling_factor}, Target: {billion_target}")
+    logging.info(f"Starting billion_cycle for wallet: {wallet} with strategy: {strategy_name}, initial_scaling_factor: {initial_scaling_factor}, Target: {billion_target}")
+
     while True:
         try:
             # 1. Simulate compounding trading/farming (risk and volume increase over time)
             await asyncio.sleep(random.randint(2, 5)) # Simulate time for trading/farming
-            profit_amount = round(random.uniform(100_000, 300_000) * current_scaling_factor, 2)
+
+            # Profit calculation using strategy config
+            profit_this_cycle = random.uniform(strategy_config.min_profit_factor, strategy_config.max_profit_factor)
+            profit_amount = round(profit_this_cycle * strategy_config.base_profit_amount * current_scaling_factor, 2)
+
             profit = {
                 "id": f"{wallet}_evt_{random.randint(10000,99999)}",
                 "amount": profit_amount,
@@ -85,13 +151,16 @@ async def billion_cycle(wallet: str, initial_scaling_factor: float):
 
                 clone_wallet = f"{wallet}_clone_{clone_count+1}"
                 if clone_wallet not in wallets:
-                    logging.info(f"Wallet {wallet}: Cloning to {clone_wallet} with scaling factor {current_scaling_factor}")
+                    logging.info(f"Wallet {wallet}: Cloning to {clone_wallet} with strategy {strategy_name} and scaling factor {current_scaling_factor}")
                     wallets.append(clone_wallet)
                     wallet_scaling_factors[clone_wallet] = current_scaling_factor # Initialize for new clone
-                    asyncio.create_task(billion_cycle(clone_wallet, initial_scaling_factor=current_scaling_factor))
+                    wallet_strategies[clone_wallet] = strategy_name # Clone inherits strategy
+                    asyncio.create_task(billion_cycle(wallet=clone_wallet,
+                                                      initial_scaling_factor=current_scaling_factor,
+                                                      strategy_name=strategy_name))
                     clone_count += 1
             else:
-                logging.info(f"Wallet {wallet}: 🎉 Reached $1B target this week! Resetting weekly total and scaling factor.")
+                logging.info(f"Wallet {wallet} (Strategy: {strategy_name}): 🎉 Reached $1B target this week! Resetting weekly total and scaling factor.")
                 weekly_total = 0
                 current_scaling_factor = 1.0 # Reset for this wallet's next week
                 wallet_scaling_factors[wallet] = current_scaling_factor # Update status dict
@@ -111,10 +180,18 @@ async def billion_cycle(wallet: str, initial_scaling_factor: float):
 async def get_profits(wallet: str):
     return {"profitEvents": profit_events.get(wallet, [])}
 
-@app.get("/status")
+@app.get("/status", summary="Get the overall system status.")
 async def status():
-    # Now returns individual scaling factors, or could be an average, etc.
-    return {"wallets": wallets, "wallet_scaling_factors": wallet_scaling_factors, "profit_events": profit_events}
+    """
+    Returns a snapshot of the system's current state, including all registered wallets,
+    their profit events, current scaling factors, and assigned strategies.
+    """
+    return {
+        "wallets": wallets,
+        "wallet_scaling_factors": wallet_scaling_factors,
+        "profit_events": profit_events,
+        "wallet_strategies": wallet_strategies # Added wallet strategies
+    }
 
 @app.post("/adjust_scaling_factor", summary="Manually adjust the scaling factor for a specific wallet.")
 async def adjust_scaling_factor(req: AdjustScalingFactorRequest):
