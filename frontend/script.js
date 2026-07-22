@@ -8,9 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // System Status Elements
     const getStatusBtn = document.getElementById('getStatusBtn');
-    const walletsListUl = document.getElementById('walletsList');
-    const scalingFactorsDataPre = document.getElementById('scalingFactorsData');
-    const strategiesDataPre = document.getElementById('strategiesData');
+    const statusMarketSentiment = document.getElementById('statusMarketSentiment');
+    const walletsContainer = document.getElementById('walletsContainer');
 
     // Profit Events Elements
     const profitWalletAddressInput = document.getElementById('profitWalletAddress');
@@ -43,46 +42,79 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Get System Status ---
-    getStatusBtn.addEventListener('click', async () => {
-        walletsListUl.innerHTML = '<li>Loading...</li>'; // Clear previous before loading
-        scalingFactorsDataPre.textContent = 'Loading...';
-        strategiesDataPre.textContent = 'Loading...';
+    // --- Get System Status & Super Backpacks ---
+    const updateSystemStatus = async () => {
         try {
             const response = await fetch(`${apiUrl}/status`);
             const data = await response.json();
 
             if (response.ok) {
-                // Wallets List
-                walletsListUl.innerHTML = ''; // Clear loading/previous
+                // 1. Update Market Sentiment Badge
+                const sentiment = data.market_sentiment || 'NEUTRAL';
+                statusMarketSentiment.textContent = sentiment;
+                statusMarketSentiment.className = `sentiment-badge ${sentiment}`;
+
+                // 2. Clear previous wallets container
+                walletsContainer.innerHTML = '';
+
+                // 3. Render cards for each registered wallet
                 if (data.wallets && data.wallets.length > 0) {
                     data.wallets.forEach(wallet => {
-                        const li = document.createElement('li');
-                        li.textContent = wallet;
-                        walletsListUl.appendChild(li);
+                        const card = document.createElement('div');
+                        card.className = 'wallet-card';
+
+                        const strategy = data.wallet_strategies[wallet] || 'N/A';
+                        const scale = data.wallet_scaling_factors[wallet] || 1.0;
+                        const backpack = data.wallet_backpacks[wallet] || { "USDC": 0, "SOL": 0, "JUP": 0, "PYTH": 0 };
+
+                        // Assemble card HTML
+                        let backpackHtml = '';
+                        for (const [token, balance] of Object.entries(backpack)) {
+                            backpackHtml += `
+                                <div class="token-row">
+                                    <span class="token-name">${token}</span>
+                                    <span class="token-balance">${Number(balance).toFixed(4)}</span>
+                                </div>
+                            `;
+                        }
+
+                        card.innerHTML = `
+                            <h4>${wallet}</h4>
+                            <div class="wallet-meta">
+                                <strong>Strategy:</strong> ${strategy}<br>
+                                <strong>Scaling Factor:</strong> ${scale}x
+                            </div>
+                            <div class="backpack-inventory">
+                                <h5>Super Backpack Assets</h5>
+                                ${backpackHtml}
+                            </div>
+                        `;
+
+                        walletsContainer.appendChild(card);
                     });
                 } else {
-                    walletsListUl.innerHTML = '<li>No wallets registered.</li>';
+                    walletsContainer.innerHTML = `
+                        <p style="color: #666; font-style: italic; grid-column: 1 / -1;">
+                            No wallets registered yet. Enter a wallet above to initiate the Billion Cycle simulation!
+                        </p>
+                    `;
                 }
-
-                // Scaling Factors
-                scalingFactorsDataPre.textContent = JSON.stringify(data.wallet_scaling_factors || {}, null, 2);
-
-                // Strategies
-                strategiesDataPre.textContent = JSON.stringify(data.wallet_strategies || {}, null, 2);
-
             } else {
-                walletsListUl.innerHTML = `<li>Error loading wallets: ${data.detail || response.statusText}</li>`;
-                scalingFactorsDataPre.textContent = `Error: ${data.detail || response.statusText}`;
-                strategiesDataPre.textContent = `Error: ${data.detail || response.statusText}`;
+                walletsContainer.innerHTML = `<p style="color: red;">Error: ${data.detail || response.statusText}</p>`;
             }
         } catch (error) {
             console.error('Get status error:', error);
-            walletsListUl.innerHTML = `<li>Network error: ${error.message}</li>`;
-            scalingFactorsDataPre.textContent = `Network error: ${error.message}`;
-            strategiesDataPre.textContent = `Network error: ${error.message}`;
+            walletsContainer.innerHTML = `<p style="color: red;">Network error: ${error.message}</p>`;
         }
-    });
+    };
+
+    // Trigger on button click
+    getStatusBtn.addEventListener('click', updateSystemStatus);
+
+    // Auto-refresh the system status dashboard every 3 seconds to show live changes!
+    setInterval(updateSystemStatus, 3000);
+    // Fetch immediately on load
+    updateSystemStatus();
 
     // --- Get Profit Events ---
     getProfitEventsBtn.addEventListener('click', async () => {

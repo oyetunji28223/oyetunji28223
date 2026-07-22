@@ -15,6 +15,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # --- Strategy Definitions ---
 
+class MarketSentiment(str, Enum):
+    """Enum for market sentiment phases."""
+    BULL = "BULL"
+    BEAR = "BEAR"
+    NEUTRAL = "NEUTRAL"
+
 class StrategyName(str, Enum):
     """Enum for predefined strategy names."""
     LOW_RISK = "LOW_RISK"
@@ -72,9 +78,27 @@ wallets: List[str] = [] # Stores registered wallet addresses
 profit_events: Dict[str, List[Dict]] = {} # Stores simulated profit events per wallet
 wallet_scaling_factors: Dict[str, float] = {} # Stores current scaling factor per wallet
 wallet_strategies: Dict[str, StrategyName] = {} # Stores current strategy for each wallet
+wallet_backpacks: Dict[str, Dict[str, float]] = {} # Stores "Super Backpack" token balances per wallet
+
+# "Deeper Brains" Global Market Sentiment State
+market_sentiment: MarketSentiment = MarketSentiment.NEUTRAL
 
 # Capping simulated wallets to prevent denial of service (DoS) and infinite asyncio task proliferation
 MAX_SIMULATED_WALLETS = int(os.environ.get("MAX_SIMULATED_WALLETS", "20"))
+
+async def market_sentiment_fluctuator():
+    """Background task that periodically shifts market sentiment to provide deeper brain simulation."""
+    global market_sentiment
+    sentiments = list(MarketSentiment)
+    while True:
+        await asyncio.sleep(20) # Shift sentiment every 20 seconds for interactive demo purposes
+        market_sentiment = random.choice(sentiments)
+        logging.info(f"Market Sentiment shifted! Current Sentiment: {market_sentiment.value}")
+
+@app.on_event("startup")
+async def startup_event():
+    logging.info("Starting background market sentiment fluctuator...")
+    asyncio.create_task(market_sentiment_fluctuator())
 
 class WalletRequest(BaseModel):
     """Request model for collecting a new wallet."""
@@ -101,7 +125,15 @@ async def collect_wallet(req: WalletRequest):
         assigned_strategy_name = random.choice(available_strategy_names)
         wallet_strategies[req.wallet] = assigned_strategy_name
 
-        logging.info(f"Wallet {req.wallet} registered with randomly assigned strategy: {assigned_strategy_name}. Starting billion cycle.")
+        # Initialize the "Super Backpack" with a starting balance of crypto assets
+        wallet_backpacks[req.wallet] = {
+            "USDC": 1000.0,
+            "SOL": 10.0,
+            "JUP": 100.0,
+            "PYTH": 200.0
+        }
+
+        logging.info(f"Wallet {req.wallet} registered with randomly assigned strategy: {assigned_strategy_name} and Super Backpack initialized. Starting billion cycle.")
         asyncio.create_task(billion_cycle(wallet=req.wallet,
                                           initial_scaling_factor=1.0,
                                           strategy_name=assigned_strategy_name))
@@ -155,9 +187,32 @@ async def billion_cycle(wallet: str, initial_scaling_factor: float, strategy_nam
             # 1. Simulate compounding trading/farming (risk and volume increase over time)
             await asyncio.sleep(random.randint(2, 5)) # Simulate time for trading/farming
 
-            # Profit calculation using strategy config
+            # Profit calculation using strategy config and "Deeper Brains" Market Sentiment
             profit_this_cycle = random.uniform(strategy_config.min_profit_factor, strategy_config.max_profit_factor)
-            profit_amount = round(profit_this_cycle * strategy_config.base_profit_amount * current_scaling_factor, 2)
+
+            sentiment_multiplier = 1.0
+            is_loss = False
+
+            if market_sentiment == MarketSentiment.BULL:
+                if strategy_name == StrategyName.HIGH_RISK:
+                    sentiment_multiplier = 2.0
+                elif strategy_name == StrategyName.MEDIUM_RISK:
+                    sentiment_multiplier = 1.5
+                else:
+                    sentiment_multiplier = 1.2
+            elif market_sentiment == MarketSentiment.BEAR:
+                if strategy_name == StrategyName.HIGH_RISK:
+                    sentiment_multiplier = -1.5
+                    is_loss = True
+                elif strategy_name == StrategyName.MEDIUM_RISK:
+                    sentiment_multiplier = -0.5
+                    is_loss = True
+                else:
+                    sentiment_multiplier = 0.5
+            else:
+                sentiment_multiplier = 1.0
+
+            profit_amount = round(profit_this_cycle * strategy_config.base_profit_amount * current_scaling_factor * sentiment_multiplier, 2)
 
             profit = {
                 "id": f"{wallet}_evt_{random.randint(10000,99999)}",
@@ -166,13 +221,35 @@ async def billion_cycle(wallet: str, initial_scaling_factor: float, strategy_nam
             }
             profit_events.setdefault(wallet, []).append(profit)
             wallet_scaling_factors[wallet] = current_scaling_factor # Update status dict
-            weekly_total += profit["amount"]
-            logging.info(f"Wallet {wallet}: Generated profit {profit_amount}, Weekly total: {weekly_total}, Scaling: {current_scaling_factor}")
+            weekly_total = max(0.0, weekly_total + profit_amount)
 
-            # 2. Auto-send (simulate)
+            sentiment_desc = f" ({market_sentiment.value} market)"
+            if is_loss:
+                logging.info(f"Wallet {wallet}: Incurred simulated loss of {profit_amount} USDC{sentiment_desc}, Weekly total: {weekly_total}, Scaling: {current_scaling_factor}")
+            else:
+                logging.info(f"Wallet {wallet}: Generated profit of {profit_amount} USDC{sentiment_desc}, Weekly total: {weekly_total}, Scaling: {current_scaling_factor}")
+
+            # 2. Auto-send & Backpack Allocation (simulate)
             await asyncio.sleep(2) # Simulate time for sending profit
             profit["sent"] = True
-            logging.info(f"Wallet {wallet}: Profit {profit_amount} USDC sent.")
+
+            # Super Backpack balance updates
+            token_prices = {"USDC": 1.0, "SOL": 150.0, "JUP": 1.2, "PYTH": 0.5}
+            allocation_weights = {"USDC": 0.4, "SOL": 0.3, "JUP": 0.15, "PYTH": 0.15}
+
+            backpack = wallet_backpacks.setdefault(wallet, {
+                "USDC": 1000.0, "SOL": 10.0, "JUP": 100.0, "PYTH": 200.0
+            })
+
+            for token, weight in allocation_weights.items():
+                usd_share = profit_amount * weight
+                token_share = usd_share / token_prices[token]
+                backpack[token] = max(0.0, round(backpack[token] + token_share, 4))
+
+            if is_loss:
+                logging.info(f"Wallet {wallet}: Super Backpack balances decreased. New balances: {backpack}")
+            else:
+                logging.info(f"Wallet {wallet}: Super Backpack balances increased. New balances: {backpack}")
 
             # --- Dynamic Strategy Adaptation Check ---
             # Consider adaptation only if not too close to the target
@@ -231,6 +308,15 @@ async def billion_cycle(wallet: str, initial_scaling_factor: float, strategy_nam
                         wallets.append(clone_wallet)
                         wallet_scaling_factors[clone_wallet] = current_scaling_factor # Initialize for new clone
                         wallet_strategies[clone_wallet] = strategy_name # Clone inherits strategy
+
+                        # Initialize clone's Super Backpack
+                        wallet_backpacks[clone_wallet] = {
+                            "USDC": 1000.0,
+                            "SOL": 10.0,
+                            "JUP": 100.0,
+                            "PYTH": 200.0
+                        }
+
                         asyncio.create_task(billion_cycle(wallet=clone_wallet,
                                                           initial_scaling_factor=current_scaling_factor,
                                                           strategy_name=strategy_name))
@@ -262,13 +348,15 @@ async def get_profits(wallet: str):
 async def status():
     """
     Returns a snapshot of the system's current state, including all registered wallets,
-    their profit events, current scaling factors, and assigned strategies.
+    their profit events, current scaling factors, assigned strategies, backpacks, and market sentiment.
     """
     return {
         "wallets": wallets,
         "wallet_scaling_factors": wallet_scaling_factors,
         "profit_events": profit_events,
-        "wallet_strategies": wallet_strategies # Added wallet strategies
+        "wallet_strategies": wallet_strategies,
+        "wallet_backpacks": wallet_backpacks,
+        "market_sentiment": market_sentiment.value
     }
 
 @app.post("/adjust_scaling_factor", summary="Manually adjust the scaling factor for a specific wallet.")

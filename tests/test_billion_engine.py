@@ -198,6 +198,36 @@ async def test_clone_inherits_strategy_in_state():
         assert status_data["wallet_strategies"][parent_wallet_name] == parent_strategy_name.value
         assert status_data["wallet_strategies"][clone_wallet_name] == parent_strategy_name.value # Verify inheritance
 
+@pytest.mark.asyncio
+async def test_wallet_backpack_initialized():
+    """Test that registering a wallet initializes its Super Backpack with starting assets."""
+    wallet_name = "backpack_wallet_1"
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response_collect = await ac.post("/collect_wallet", json={"wallet": wallet_name})
+        assert response_collect.status_code == 200
+
+        response_status = await ac.get("/status")
+        assert response_status.status_code == 200
+        status_data = response_status.json()
+
+        assert wallet_name in status_data["wallet_backpacks"]
+        backpack = status_data["wallet_backpacks"][wallet_name]
+        assert backpack["USDC"] == 1000.0
+        assert backpack["SOL"] == 10.0
+        assert backpack["JUP"] == 100.0
+        assert backpack["PYTH"] == 200.0
+
+@pytest.mark.asyncio
+async def test_market_sentiment_exposed_in_status():
+    """Test that the market sentiment is correctly exposed in the status endpoint."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response_status = await ac.get("/status")
+        assert response_status.status_code == 200
+        status_data = response_status.json()
+
+        assert "market_sentiment" in status_data
+        assert status_data["market_sentiment"] in ["NEUTRAL", "BULL", "BEAR"]
+
 # To run these tests:
 # 1. Ensure pytest and httpx are installed: pip install pytest httpx
 # 2. Navigate to the root directory of the project in your terminal.

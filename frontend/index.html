@@ -19,16 +19,16 @@
     </div>
 
     <div class="container">
-        <h2>System Status</h2>
+        <h2>System Status & Super Backpacks</h2>
         <button id="getStatusBtn">Get System Status</button>
-        <div id="systemStatusResult" class="result-area">
-            <h3>Registered Wallets:</h3>
-            <ul id="walletsList"></ul>
-            <h3>Wallet Scaling Factors:</h3>
-            <pre id="scalingFactorsData"></pre>
-            <h3>Wallet Strategies:</h3>
-            <pre id="strategiesData"></pre>
-            <!-- Profit events in status might be too verbose, focusing on above for now -->
+        <div id="systemStatusResult" class="result-area" style="background-color: #fff; border: none; padding: 0;">
+            <div class="status-summary" style="margin-top: 15px; padding: 10px; background-color: #e9e9e9; border-radius: 4px; border: 1px solid #ddd;">
+                <strong>Global Market Sentiment:</strong> <span id="statusMarketSentiment" class="sentiment-badge NEUTRAL">NEUTRAL</span>
+            </div>
+            <h3>Active Registered Wallets & Asset Backpacks:</h3>
+            <div id="walletsContainer" class="wallets-grid">
+                <p style="color: #666; font-style: italic;">No wallets registered yet. Enter a wallet above to initiate the Billion Cycle simulation!</p>
+            </div>
         </div>
     </div>
 
