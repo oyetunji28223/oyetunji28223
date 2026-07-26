@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phantom AI Billion Dollar Engine Interface</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Phantom AI Billion Dollar Engine</h1>
+
+    <div class="container">
+        <h2>Collect Wallet</h2>
+        <div class="form-group">
+            <label for="walletAddress" class="input-label">Wallet Address <span class="required" aria-hidden="true">*</span></label>
+            <div class="input-group">
+                <input type="text" id="walletAddress" placeholder="Enter Wallet Address" required>
+                <button id="collectWalletBtn">Register Wallet</button>
+            </div>
+        </div>
+        <div id="collectWalletResult" class="result-area"></div>
+    </div>
+
+    <div class="container">
+        <h2>System Status & Super Backpacks</h2>
+        <button id="getStatusBtn">Get System Status</button>
+        <div id="systemStatusResult" class="result-area" style="background-color: #fff; border: none; padding: 0;">
+            <div class="status-summary" style="margin-top: 15px; padding: 10px; background-color: #e9e9e9; border-radius: 4px; border: 1px solid #ddd;">
+                <strong>Global Market Sentiment:</strong> <span id="statusMarketSentiment" class="sentiment-badge NEUTRAL">NEUTRAL</span>
+            </div>
+            <h3>Active Registered Wallets & Asset Backpacks:</h3>
+            <div id="walletsContainer" class="wallets-grid">
+                <p style="color: #666; font-style: italic;">No wallets registered yet. Enter a wallet above to initiate the Billion Cycle simulation!</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Profit Events</h2>
+        <div class="form-group">
+            <label for="profitWalletAddress" class="input-label">Wallet Address for Profit History <span class="required" aria-hidden="true">*</span></label>
+            <div class="input-group">
+                <input type="text" id="profitWalletAddress" placeholder="Enter Wallet for Profits" required>
+                <button id="getProfitEventsBtn">Get Profit Events</button>
+            </div>
+        </div>
+        <div id="profitEventsResult" class="result-area"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
