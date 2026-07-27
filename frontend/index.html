@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phantom AI Billion Dollar Engine Interface</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Phantom AI Billion Dollar Engine</h1>
+
+    <div class="container">
+        <h2>Collect Wallet</h2>
+        <form id="collectWalletForm">
+            <label for="walletAddress" class="input-label">Wallet Address <span class="required">*</span></label>
+            <div class="input-group">
+                <input type="text" id="walletAddress" placeholder="Enter Wallet Address" required>
+                <button type="submit" id="collectWalletBtn">Register Wallet</button>
+            </div>
+        </form>
+        <div id="collectWalletResult" class="result-area" aria-live="polite"></div>
+    </div>
+
+    <div class="container">
+        <h2>System Status</h2>
+        <button id="getStatusBtn">Get System Status</button>
+        <div id="systemStatusResult" class="result-area">
+            <h3>Registered Wallets:</h3>
+            <ul id="walletsList"></ul>
+            <h3>Wallet Scaling Factors:</h3>
+            <pre id="scalingFactorsData"></pre>
+            <h3>Wallet Strategies:</h3>
+            <pre id="strategiesData"></pre>
+            <!-- Profit events in status might be too verbose, focusing on above for now -->
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Profit Events</h2>
+        <form id="profitEventsForm">
+            <label for="profitWalletAddress" class="input-label">Wallet Address <span class="required">*</span></label>
+            <div class="input-group">
+                <input type="text" id="profitWalletAddress" placeholder="Enter Wallet for Profits" required>
+                <button type="submit" id="getProfitEventsBtn">Get Profit Events</button>
+            </div>
+        </form>
+        <div id="profitEventsResult" class="result-area" aria-live="polite"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
