@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phantom AI Billion Dollar Engine Interface</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Phantom AI Billion Dollar Engine</h1>
+
+    <form id="collectWalletForm" class="container" novalidate>
+        <h2>Collect Wallet</h2>
+        <label for="walletAddress" class="input-label">Wallet Address <span class="required">*</span></label>
+        <div class="input-group">
+            <input type="text" id="walletAddress" placeholder="Enter Wallet Address" aria-required="true">
+            <button type="submit" id="collectWalletBtn">Register Wallet</button>
+        </div>
+        <div id="collectWalletResult" class="result-area" aria-live="polite" role="status"></div>
+    </form>
+
+    <div class="container">
+        <h2>System Status</h2>
+        <button id="getStatusBtn" aria-controls="systemStatusResult">Get System Status</button>
+        <div id="systemStatusResult" class="result-area">
+            <h3>Registered Wallets:</h3>
+            <ul id="walletsList" aria-live="polite" role="status"></ul>
+            <h3>Wallet Scaling Factors:</h3>
+            <pre id="scalingFactorsData" aria-live="polite" role="status"></pre>
+            <h3>Wallet Strategies:</h3>
+            <pre id="strategiesData" aria-live="polite" role="status"></pre>
+            <!-- Profit events in status might be too verbose, focusing on above for now -->
+        </div>
+    </div>
+
+    <form id="profitEventsForm" class="container" novalidate>
+        <h2>Profit Events</h2>
+        <label for="profitWalletAddress" class="input-label">Wallet Address <span class="required">*</span></label>
+        <div class="input-group">
+            <input type="text" id="profitWalletAddress" placeholder="Enter Wallet for Profits" aria-required="true">
+            <button type="submit" id="getProfitEventsBtn">Get Profit Events</button>
+        </div>
+        <div id="profitEventsResult" class="result-area" aria-live="polite" role="status"></div>
+    </form>
+
+    <script src="script.js"></script>
+</body>
+</html>
