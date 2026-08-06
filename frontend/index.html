@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phantom AI Billion Dollar Engine Interface</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Phantom AI Billion Dollar Engine</h1>
+
+    <form id="collectWalletForm" class="container" novalidate>
+        <h2>Collect Wallet</h2>
+        <label for="walletAddress" class="input-label">Wallet Address <span class="required">*</span></label>
+        <div class="input-group">
+            <input type="text" id="walletAddress" placeholder="Enter Wallet Address" aria-required="true" aria-describedby="collectWalletResult">
+            <button type="submit" id="collectWalletBtn">Register Wallet</button>
+        </div>
+        <div id="collectWalletResult" class="result-area" aria-live="polite" role="status">No wallet registered yet. Enter an address above to start the simulation.</div>
+    </form>
+
+    <div class="container">
+        <h2>System Status</h2>
+        <div class="status-controls" style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+            <button id="getStatusBtn" aria-controls="systemStatusResult">Get System Status</button>
+            <label class="checkbox-label" style="display: inline-flex; align-items: center; font-size: 0.95rem; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="autoRefreshCb" style="margin-right: 6px; width: 16px; height: 16px; cursor: pointer;">
+                Auto-refresh (5s)
+            </label>
+        </div>
+        <div id="systemStatusResult" class="result-area">
+            <h3>Registered Wallets:</h3>
+            <ul id="walletsList" aria-live="polite" role="status">
+                <li class="empty-state">No wallets loaded. Click Get System Status or enable Auto-refresh.</li>
+            </ul>
+            <h3>Wallet Scaling Factors:</h3>
+            <pre id="scalingFactorsData" aria-live="polite" role="status">No scaling factors loaded.</pre>
+            <h3>Wallet Strategies:</h3>
+            <pre id="strategiesData" aria-live="polite" role="status">No wallet strategies loaded.</pre>
+            <!-- Profit events in status might be too verbose, focusing on above for now -->
+        </div>
+    </div>
+
+    <form id="profitEventsForm" class="container" novalidate>
+        <h2>Profit Events</h2>
+        <label for="profitWalletAddress" class="input-label">Wallet Address <span class="required">*</span></label>
+        <div class="input-group">
+            <input type="text" id="profitWalletAddress" placeholder="Enter Wallet for Profits" aria-required="true" aria-describedby="profitEventsResult">
+            <button type="submit" id="getProfitEventsBtn">Get Profit Events</button>
+        </div>
+        <div id="profitEventsResult" class="result-area" aria-live="polite" role="status">Enter a wallet address above and click Get Profit Events to view history.</div>
+    </form>
+
+    <script src="script.js"></script>
+</body>
+</html>
